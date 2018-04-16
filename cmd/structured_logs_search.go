@@ -27,10 +27,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	defaultKeySplit = "."
-)
-
 type StructuredLogType int
 
 const (
@@ -75,16 +71,6 @@ func StructuredLoggingSearch(config Config) error {
 	// of goroutines
 	wg := sync.WaitGroup{}
 
-	config.matchOn = []KV{
-		KV{key: "key5", value: "5"},
-		KV{key: "complexKey.complexKey1.key3", value: "value3"},
-		KV{key: "key1", regexString: "value"},
-	}
-
-	config.printKeys = []string{"key2", "key1", "key5", "complexKey"}
-	config.matchType = StructuredLogMatchTypeOr
-	config.keySplitString = defaultKeySplit
-
 	for {
 		// TODO(vishen): This is super inefficient...
 		text, err := reader.ReadBytes('\n')
@@ -111,19 +97,26 @@ func searchableKey(key, splitKeyOnString string) []string {
 func searchLine(line []byte, config Config) {
 	valuesToPrint := make([]KV, 0, len(config.printKeys))
 
-	matched := false
+	found := false
 	for _, v := range config.matchOn {
 		// TODO(vishen): Is there a better way to check equality than forcing
 		// everything to strings and comparing them?
 		keySplit := searchableKey(v.key, config.keySplitString)
 		vs, _, _, _ := jsonparser.Get(line, keySplit...)
 
-		if fmt.Sprint("%s", vs) == v.value {
-			matched = true
-		} else if found, _ := regexp.MatchString(v.regexString, fmt.Sprintf("%s", vs)); found {
-			matched = true
-		} else if config.matchType == StructuredLogMatchTypeAnd {
+		matched := false
+		if v.value != "" {
+			matched = fmt.Sprintf("%s", vs) == v.value
+		} else if v.regexString != "" {
+			matched, _ = regexp.MatchString(v.regexString, fmt.Sprintf("%s", vs))
+		}
+
+		if !matched && config.matchType == StructuredLogMatchTypeAnd {
 			return
+		}
+
+		if matched {
+			found = matched
 		}
 
 		if len(valuesToPrint) > 0 {
@@ -140,7 +133,7 @@ func searchLine(line []byte, config Config) {
 
 	}
 
-	if !matched {
+	if !found && len(config.matchOn) > 0 {
 		return
 	}
 

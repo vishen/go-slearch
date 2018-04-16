@@ -17,29 +17,74 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "go-slrep",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:   "go-slearch",
+	Short: "Search structured logs",
+	Long:  `Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON logs.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		//fmt.Printf("args=%s, cmd=%+v\n", args, cmd)
+		m, _ := cmd.Flags().GetStringSlice("match")
+		r, _ := cmd.Flags().GetStringSlice("regexp")
+		k, _ := cmd.Flags().GetStringSlice("print_keys")
+		s, _ := cmd.Flags().GetString("search_type")
+		d, _ := cmd.Flags().GetString("key_delimiter")
+
 		config := Config{}
+
+		//	m=[key1=value1 value5 key2=value2 key3=value3 value4]
+		makeKVSlice := func(values []string, regex bool) []KV {
+			prevKey := ""
+			kvs := make([]KV, 0, len(m))
+			for _, v := range values {
+				vSplit := strings.SplitN(v, "=", 2)
+
+				var key string
+				var value string
+
+				if len(vSplit) == 1 {
+					// TODO(): Should error if `prevKey` is empty
+					key = strings.TrimSpace(prevKey)
+					value = strings.TrimSpace(vSplit[0])
+				} else {
+					key = strings.TrimSpace(vSplit[0])
+					value = strings.TrimSpace(vSplit[1])
+				}
+				prevKey = key
+
+				kv := KV{key: key}
+				if regex {
+					kv.regexString = value
+				} else {
+					kv.value = value
+				}
+
+				kvs = append(kvs, kv)
+
+			}
+
+			return kvs
+		}
+
+		config.matchOn = makeKVSlice(m, false)
+		config.matchOn = append(config.matchOn, makeKVSlice(r, true)...)
+		config.printKeys = k
+		config.keySplitString = d
+
+		if strings.ToLower(s) == "or" {
+			config.matchType = StructuredLogMatchTypeOr
+		} else {
+			config.matchType = StructuredLogMatchTypeAnd
+		}
+
 		StructuredLoggingSearch(config)
 	},
 }
@@ -54,40 +99,9 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.go-slrep.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".go-slrep" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".go-slrep")
-	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	rootCmd.Flags().StringP("search_type", "s", "and", "the search type to use: 'and' or 'or'")
+	rootCmd.Flags().StringP("key_delimiter", "d", ".", "the string to split the key on for complex key queries")
+	rootCmd.Flags().StringSliceP("match", "m", []string{}, "key and value to match on. eg: label1=value1")
+	rootCmd.Flags().StringSliceP("regexp", "r", []string{}, "key and value to regex match on. eg: label1=value*")
+	rootCmd.Flags().StringSliceP("print_keys", "p", []string{}, "keys to print if a match is found")
 }
