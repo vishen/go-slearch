@@ -1,6 +1,6 @@
 {"severity": "info", "key1": "value1", "key2": "value2"}
-{"severity": "debug", "key1": "value1", "key2": "value2", "key3": "value3"}
-{"severity": "info", "key1": "value1", "key3": "value3"}
-{"severity": "info", "key1": "value1", "key4": "value4"}
+{"severity": "debug", "key1": "value12", "key2": "value2", "key3": "value3"}
+{"severity": "info", "key1": "value13", "key3": "value3"}
+{"severity": "info", "key1": "value14", "key4": "value4"}
 {"severity": "info", "key2": "value2", "key5": 5}
 {"key2": "value2", "complexKey": {"key1": "value1", "complexKey1": {"key3": "value3"}}}

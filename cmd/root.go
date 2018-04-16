@@ -40,7 +40,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		//fmt.Printf("args=%s, cmd=%+v\n", args, cmd)
 		config := Config{}
-		StructuredLoggingGrep(config)
+		StructuredLoggingSearch(config)
 	},
 }
 
