@@ -20,6 +20,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	sls "github.com/vishen/go-slearch/structured_log_search"
 )
 
 var cfgFile string
@@ -29,21 +31,19 @@ var rootCmd = &cobra.Command{
 	Use:   "go-slearch",
 	Short: "Search structured logs",
 	Long:  `Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON logs.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		m, _ := cmd.Flags().GetStringSlice("match")
 		r, _ := cmd.Flags().GetStringSlice("regexp")
 		k, _ := cmd.Flags().GetStringSlice("print_keys")
+		t, _ := cmd.Flags().GetString("type")
 		s, _ := cmd.Flags().GetString("search_type")
 		d, _ := cmd.Flags().GetString("key_delimiter")
 
-		config := Config{}
+		config := sls.Config{}
 
-		//	m=[key1=value1 value5 key2=value2 key3=value3 value4]
-		makeKVSlice := func(values []string, regex bool) []KV {
+		makeKVSlice := func(values []string, regex bool) []sls.KV {
 			prevKey := ""
-			kvs := make([]KV, 0, len(m))
+			kvs := make([]sls.KV, 0, len(m))
 			for _, v := range values {
 				vSplit := strings.SplitN(v, "=", 2)
 
@@ -60,11 +60,11 @@ var rootCmd = &cobra.Command{
 				}
 				prevKey = key
 
-				kv := KV{key: key}
+				kv := sls.KV{Key: key}
 				if regex {
-					kv.regexString = value
+					kv.RegexString = value
 				} else {
-					kv.value = value
+					kv.Value = value
 				}
 
 				kvs = append(kvs, kv)
@@ -74,18 +74,24 @@ var rootCmd = &cobra.Command{
 			return kvs
 		}
 
-		config.matchOn = makeKVSlice(m, false)
-		config.matchOn = append(config.matchOn, makeKVSlice(r, true)...)
-		config.printKeys = k
-		config.keySplitString = d
+		config.MatchOn = makeKVSlice(m, false)
+		config.MatchOn = append(config.MatchOn, makeKVSlice(r, true)...)
+		config.PrintKeys = k
+		config.KeySplitString = d
 
-		if strings.ToLower(s) == "or" {
-			config.matchType = StructuredLogMatchTypeOr
+		if strings.ToLower(t) == "text" {
+			config.LogType = sls.StructuredLogTypeText
 		} else {
-			config.matchType = StructuredLogMatchTypeAnd
+			config.LogType = sls.StructuredLogTypeJson
 		}
 
-		StructuredLoggingSearch(config)
+		if strings.ToLower(s) == "or" {
+			config.MatchType = sls.StructuredLogMatchTypeOr
+		} else {
+			config.MatchType = sls.StructuredLogMatchTypeAnd
+		}
+
+		sls.StructuredLoggingSearch(config)
 	},
 }
 
@@ -99,8 +105,9 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Flags().StringP("type", "t", "json", "the log type to use: 'json' or 'text'")
 	rootCmd.Flags().StringP("search_type", "s", "and", "the search type to use: 'and' or 'or'")
-	rootCmd.Flags().StringP("key_delimiter", "d", ".", "the string to split the key on for complex key queries")
+	rootCmd.Flags().StringP("key_delimiter", "d", "", "the string to split the key on for complex key queries")
 	rootCmd.Flags().StringSliceP("match", "m", []string{}, "key and value to match on. eg: label1=value1")
 	rootCmd.Flags().StringSliceP("regexp", "r", []string{}, "key and value to regex match on. eg: label1=value*")
 	rootCmd.Flags().StringSliceP("print_keys", "p", []string{}, "keys to print if a match is found")

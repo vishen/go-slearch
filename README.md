@@ -1,12 +1,12 @@
 # Structured Logs Search (slearch)
 This is a simple  utility to search through structured JSON logs that come out of your logging systems; eg: `kubectl logs` or `docker logs`.
 
-Slearch will read structured JSON logs via `stdin` that are separated newlines and allow you to filter out exact or regex matches per log line.
+Slearch will read structured JSON or text logs via `stdin` that are separated newlines and allow you to filter out exact or regex matches per log line.
 
 ## Usage
 ```
 $ go-slearch --help
-Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON logs.
+Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON and text logs.
 
 Usage:
   go-slearch [flags]
@@ -18,7 +18,7 @@ Flags:
   -p, --print_keys strings     keys to print if a match is found
   -r, --regexp strings         key and value to regex match on. eg: label1=value*
   -s, --search_type string     the search type to use: 'and' or 'or' (default "and")
-
+  -t, --type string            the log type to use: 'json' or 'text' (default "json")
 ```
 
 ## Example
@@ -53,8 +53,8 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or
 {"severity": "info", "key1": "value1", "key2": "value2"}
 {"severity": "info", "key1": "value13", "key3": "value3"}
 
-# Search on a complex ket
-$ cat example.txt | go-slearch -m complexKey.key1=value1
+# Search on a complex key, the -d is the delimiter to use for a complex key, which is '.' in this case
+$ cat example.txt | go-slearch -m complexKey.key1=value1 -d .
 {"key2": "value2", "complexKey": {"key1": "value1", "complexKey1": {"key3": "value3"}}}
 
 # Only print certain keys
@@ -66,7 +66,8 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or -p severity,key1
 
 ## TODO
 ```
-- Make it work for structured text format
 - Tests
 - Better controlled concurrency
+- print only keys
+- sort based on keys
 ```
