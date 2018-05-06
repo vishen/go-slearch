@@ -1,7 +1,21 @@
 # Structured Logs Search (slearch)
-This is a simple  utility to search through structured JSON logs that come out of your logging systems; eg: `kubectl logs` or `docker logs`.
+This is a simple  utility to search through structured JSON or text logs that come out of your logging systems; eg: `kubectl logs` or `docker logs`.
 
-Slearch will read structured JSON or text logs via `stdin` that are separated newlines and allow you to filter out exact or regex matches per log line. It will print the matching results in the same order they are read.
+Slearch will read structured JSON or text logs via `stdin` that are separated by newlines and allow you to filter out exact or regex matches per log line. It will print the matching results in the same order they are read.
+
+By default it will match queries as `AND`, meaning it will only show results where all queries for a line match. This can be changed to an `OR` query with the `-s` flag.
+
+Matched queries can either be exact with `-m` or by regex (using golang stdlib regexp package) with `-r`
+
+## Installing
+```
+$ go get -u github.com/vishen/go-slearch
+```
+
+## Installing from source
+```
+$ make build
+```
 
 ## Usage
 ```
@@ -23,7 +37,6 @@ Flags:
 
 ## Example
 ```
-$ make build
 $ cat example.txt
 {"severity": "info", "key1": "value1", "key2": "value2"}
 {"severity": "debug", "key1": "value12", "key2": "value2", "key3": "value3"}
@@ -66,7 +79,7 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or -p severity,key1
 
 ## TODO
 ```
-- Tests
+- Tests and documentation
 - Better controlled concurrency
 - sort based on keys
 ```
