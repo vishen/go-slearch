@@ -1,7 +1,7 @@
 # Structured Logs Search (slearch)
 This is a simple  utility to search through structured JSON logs that come out of your logging systems; eg: `kubectl logs` or `docker logs`.
 
-Slearch will read structured JSON or text logs via `stdin` that are separated newlines and allow you to filter out exact or regex matches per log line.
+Slearch will read structured JSON or text logs via `stdin` that are separated newlines and allow you to filter out exact or regex matches per log line. It will print the matching results in the same order they are read.
 
 ## Usage
 ```
@@ -68,6 +68,5 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or -p severity,key1
 ```
 - Tests
 - Better controlled concurrency
-- print only keys
 - sort based on keys
 ```

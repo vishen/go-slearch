@@ -3,6 +3,7 @@ package structured_log_search
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/buger/jsonparser"
 )
@@ -15,7 +16,7 @@ func (j jsonLogFormatter) GetValueFromLine(config Config, line []byte, key strin
 	return fmt.Sprintf("%s", vs)
 }
 
-func (j jsonLogFormatter) PrintFoundValues(config Config, valuesFound []KV) {
+func (j jsonLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {
 	var buffer bytes.Buffer
 	buffer.WriteString("{")
 	for i, v := range valuesFound {
@@ -25,6 +26,13 @@ func (j jsonLogFormatter) PrintFoundValues(config Config, valuesFound []KV) {
 		}
 	}
 	buffer.WriteString("}")
-	fmt.Println(buffer.String())
+	return buffer.String()
 
+}
+
+func searchableKey(key, splitKeyOnString string) []string {
+	if splitKeyOnString == "" {
+		return []string{key}
+	}
+	return strings.Split(key, splitKeyOnString)
 }

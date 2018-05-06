@@ -47,7 +47,10 @@ func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key strin
 		// Eat up until the eatUntil character and return value
 		for {
 			if pos >= len(line) || line[pos] == eatUntil || line[pos] == '\n' {
-				break
+				// If we are escaping, ignore
+				if line[pos-1] != '\\' {
+					break
+				}
 			}
 			pos += 1
 		}
@@ -62,10 +65,10 @@ func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key strin
 	return ""
 }
 
-func (t textLogFormatter) PrintFoundValues(config Config, valuesFound []KV) {
+func (t textLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {
 	var buffer bytes.Buffer
 	for _, v := range valuesFound {
-		buffer.WriteString(fmt.Sprintf("%s=%s ", v.Key, v.Value))
+		buffer.WriteString(fmt.Sprintf("%s=\"%s\" ", v.Key, v.Value))
 	}
-	fmt.Println(buffer.String())
+	return buffer.String()
 }

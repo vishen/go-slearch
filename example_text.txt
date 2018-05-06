@@ -3,4 +3,6 @@ severity=debug key1=value12 key2=value2 key3=value3
 severity=info key1=value13 key3=value3
 severity=info key1=value14 key4=value4
 severity=info key2=value2 key5=5
+key1=value16 time="2018-05-03T17:37:09Z" level=info msg="could not update positions, got: invalid character '<' looking for beginning of value"
 key1="this is a multispaced value" key3=value33 key4=value44
+key1="this is an \"escaped value\"" key3=33333

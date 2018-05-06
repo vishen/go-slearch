@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
+)
+
+var (
+	ErrNoMatchingKeyValues = errors.New("no matching key values found")
 )
 
 type StructuredLogType int
@@ -50,46 +53,86 @@ type Config struct {
 
 type StructuredLogFormatter interface {
 	GetValueFromLine(config Config, line []byte, key string) string
-	PrintFoundValues(config Config, valuesFound []KV)
+	FormatFoundValues(config Config, valuesFound []KV) string
 }
 
 func StructuredLoggingSearch(config Config) error {
 
+	type lineResult struct {
+		lineNumber uint64
+		original   string
+		result     string
+		err        error
+	}
+	resultsChan := make(chan lineResult)
+
+	doneChan := make(chan bool, 1)
+
+	go func() {
+		receivedLineResults := map[uint64]lineResult{}
+		currentLineNumber := uint64(0)
+
+		for lr := range resultsChan {
+			receivedLineResults[lr.lineNumber] = lr
+
+			for {
+				foundLineResult, ok := receivedLineResults[currentLineNumber]
+				if !ok {
+					break
+				}
+				if foundLineResult.err != nil {
+					if foundLineResult.err != ErrNoMatchingKeyValues {
+						fmt.Printf("Error on line %d :%s : %s\n", foundLineResult.lineNumber, foundLineResult.original, foundLineResult.err)
+					}
+				} else {
+					fmt.Println(foundLineResult.result)
+				}
+				currentLineNumber++
+			}
+		}
+
+		doneChan <- true
+
+	}()
+
 	// TODO(vishen): Take anything an input and output interface into this func
-	// that can be used in bufio.NewReader(
+	// that can be used in bufio.NewReader()
 	reader := bufio.NewReader(os.Stdin)
 
 	// TODO(vishen): Allow configuration to be able to use a max number
 	// of goroutines
 	wg := sync.WaitGroup{}
 
-	for {
+	for i := uint64(0); ; i++ {
 		// TODO(vishen): This is super inefficient...
 		text, err := reader.ReadBytes('\n')
 		if err != nil {
-			wg.Wait()
-			return errors.Wrapf(err, "error reading from stdin: %s", err)
+			break
 		}
 
 		wg.Add(1)
-		go func(line []byte) {
+		go func(lineNumber uint64, line []byte) {
 			defer wg.Done()
-			searchLine(config, line)
-		}(text[:len(text)-1])
+			result, err := searchLine(config, line)
+			resultsChan <- lineResult{
+				original:   string(line),
+				lineNumber: lineNumber,
+				result:     result,
+				err:        err,
+			}
+		}(i, text[:len(text)-1])
 
 	}
+
+	wg.Wait()
+	close(resultsChan)
+
+	<-doneChan
 
 	return nil
 }
 
-func searchableKey(key, splitKeyOnString string) []string {
-	if splitKeyOnString == "" {
-		return []string{key}
-	}
-	return strings.Split(key, splitKeyOnString)
-}
-
-func searchLine(config Config, line []byte) {
+func searchLine(config Config, line []byte) (string, error) {
 	valuesToPrint := make([]KV, 0, len(config.PrintKeys))
 
 	// TODO(vishen): Change this to a register approach?
@@ -113,7 +156,7 @@ func searchLine(config Config, line []byte) {
 		}
 
 		if !matched && config.MatchType == StructuredLogMatchTypeAnd {
-			return
+			return "", ErrNoMatchingKeyValues
 		}
 
 		if matched {
@@ -127,7 +170,7 @@ func searchLine(config Config, line []byte) {
 	}
 
 	if !found && len(config.MatchOn) > 0 {
-		return
+		return "", ErrNoMatchingKeyValues
 	}
 
 	for _, pk := range config.PrintKeys {
@@ -139,10 +182,15 @@ func searchLine(config Config, line []byte) {
 	}
 
 	// TODO(vishen): It is possible to have config.printKeys that don't match
-	// any line, this should NOT print the entire line!
+	// any line, this should NOT print the entire line? Currently it kind of
+	// seems alright to default to printing the line if no matching valuesToPrint
+	// are found.
 	if len(valuesToPrint) == 0 {
-		fmt.Printf("%s\n", line)
+		if len(config.PrintKeys) == 0 {
+			return string(line), nil
+		}
+		return "", ErrNoMatchingKeyValues
 	} else {
-		formatter.PrintFoundValues(config, valuesToPrint)
+		return formatter.FormatFoundValues(config, valuesToPrint), nil
 	}
 }
