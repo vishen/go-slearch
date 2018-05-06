@@ -124,18 +124,18 @@ func searchLine(config Config, line []byte) {
 			continue
 		}
 
-		for _, pk := range config.PrintKeys {
-			pkv := formatter.GetValueFromLine(config, line, pk)
-			if pkv == "" {
-				continue
-			}
-			valuesToPrint = append(valuesToPrint, KV{Key: pk, Value: fmt.Sprintf("%s", pkv)})
-		}
-
 	}
 
 	if !found && len(config.MatchOn) > 0 {
 		return
+	}
+
+	for _, pk := range config.PrintKeys {
+		pkv := formatter.GetValueFromLine(config, line, pk)
+		if pkv == "" {
+			continue
+		}
+		valuesToPrint = append(valuesToPrint, KV{Key: pk, Value: fmt.Sprintf("%s", pkv)})
 	}
 
 	// TODO(vishen): It is possible to have config.printKeys that don't match
