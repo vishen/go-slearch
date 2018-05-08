@@ -3,7 +3,7 @@ package structured_log_search
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"regexp"
 	"sync"
 
@@ -56,7 +56,7 @@ type StructuredLogFormatter interface {
 	FormatFoundValues(config Config, valuesFound []KV) string
 }
 
-func StructuredLoggingSearch(config Config) error {
+func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 
 	type lineResult struct {
 		lineNumber uint64
@@ -82,10 +82,10 @@ func StructuredLoggingSearch(config Config) error {
 				}
 				if foundLineResult.err != nil {
 					if foundLineResult.err != ErrNoMatchingKeyValues {
-						fmt.Printf("Error on line %d :%s : %s\n", foundLineResult.lineNumber, foundLineResult.original, foundLineResult.err)
+						fmt.Fprintf(out, "Error on line %d :%s : %s\n", foundLineResult.lineNumber, foundLineResult.original, foundLineResult.err)
 					}
 				} else {
-					fmt.Println(foundLineResult.result)
+					fmt.Fprintln(out, foundLineResult.result)
 				}
 				currentLineNumber++
 			}
@@ -95,9 +95,7 @@ func StructuredLoggingSearch(config Config) error {
 
 	}()
 
-	// TODO(vishen): Take anything an input and output interface into this func
-	// that can be used in bufio.NewReader()
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(in)
 
 	// TODO(vishen): Allow configuration to be able to use a max number
 	// of goroutines

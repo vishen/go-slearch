@@ -91,7 +91,7 @@ var rootCmd = &cobra.Command{
 			config.MatchType = sls.StructuredLogMatchTypeAnd
 		}
 
-		sls.StructuredLoggingSearch(config)
+		sls.StructuredLoggingSearch(config, os.Stdin, os.Stdout)
 	},
 }
 
