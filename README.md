@@ -81,5 +81,12 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or -p severity,key1
 ```
 - Tests and documentation
 - Better controlled concurrency
-- sort based on keys
+- Sort based on keys
+- Automatically detect each line log format if no log format specified
+    - Loop through all formatters until we get a result?
+- Ignore parts of the line that don't match a specified format?
+- Add integration support (might not be worth it if we have to pull in the client libraries for these)?
+    - kubernetes
+    - docker
+    - stackdriver logs
 ```
