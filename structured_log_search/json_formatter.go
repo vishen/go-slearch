@@ -8,12 +8,20 @@ import (
 	"github.com/buger/jsonparser"
 )
 
+func init() {
+	Register("json", jsonLogFormatter{})
+}
+
 type jsonLogFormatter struct{}
 
-func (j jsonLogFormatter) GetValueFromLine(config Config, line []byte, key string) string {
+func (j jsonLogFormatter) GetValueFromLine(config Config, line []byte, key string) (string, error) {
+	trimedLine := bytes.TrimSpace(line)
+	if trimedLine[0] != '{' && trimedLine[len(trimedLine)-1] != '}' {
+		return "", ErrInvalidFormatForLine
+	}
 	keySplit := searchableKey(key, config.KeySplitString)
-	vs, _, _, _ := jsonparser.Get(line, keySplit...)
-	return fmt.Sprintf("%s", vs)
+	vs, _, _, _ := jsonparser.Get(trimedLine, keySplit...)
+	return fmt.Sprintf("%s", vs), nil
 }
 
 func (j jsonLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {

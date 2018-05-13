@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -79,11 +80,10 @@ var rootCmd = &cobra.Command{
 		config.PrintKeys = k
 		config.KeySplitString = d
 
-		if strings.ToLower(t) == "text" {
-			config.LogType = sls.StructuredLogTypeText
-		} else {
-			config.LogType = sls.StructuredLogTypeJson
+		if t == "" {
+			t = "json"
 		}
+		config.LogFormatterType = strings.ToLower(t)
 
 		if strings.ToLower(s) == "or" {
 			config.MatchType = sls.StructuredLogMatchTypeOr
@@ -91,7 +91,9 @@ var rootCmd = &cobra.Command{
 			config.MatchType = sls.StructuredLogMatchTypeAnd
 		}
 
-		sls.StructuredLoggingSearch(config, os.Stdin, os.Stdout)
+		if err := sls.StructuredLoggingSearch(config, os.Stdin, os.Stdout); err != nil {
+			log.Printf("error searching structured logs: %s\n", err)
+		}
 	},
 }
 

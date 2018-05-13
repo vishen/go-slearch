@@ -11,52 +11,27 @@ import (
 )
 
 var (
-	ErrNoMatchingKeyValues = errors.New("no matching key values found")
+	// Common errors
+	ErrNoMatchingKeyValues   = errors.New("no matching key values found")
+	ErrNoMatchingPrintValues = errors.New("no matching print values found")
+	ErrInvalidFormatForLine  = errors.New("invalid line format")
 )
 
-type StructuredLogType int
-
-const (
-	StructuredLogTypeJson = StructuredLogType(iota)
-	StructuredLogTypeText
-)
-
-type StructuredLogMatchType int
-
-const (
-	StructuredLogMatchTypeAnd = StructuredLogMatchType(iota)
-	StructuredLogMatchTypeOr
-)
-
-type KV struct {
-	Key         string
-	Value       string
-	RegexString string
-}
-
-type Config struct {
-	// Whether this is an AND or OR matching
-	MatchType StructuredLogMatchType
-
-	// Json, text, etc...
-	LogType StructuredLogType
-
-	// Values to match on
-	MatchOn []KV
-
-	// Which keys to print for matching records
-	PrintKeys []string
-
-	// String to split the key on
-	KeySplitString string
+func isSoftError(err error) bool {
+	return err == ErrNoMatchingKeyValues || err == ErrNoMatchingPrintValues
 }
 
 type StructuredLogFormatter interface {
-	GetValueFromLine(config Config, line []byte, key string) string
+	GetValueFromLine(config Config, line []byte, key string) (string, error)
 	FormatFoundValues(config Config, valuesFound []KV) string
 }
 
 func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
+
+	formatter, ok := getFormatter(config.LogFormatterType)
+	if !ok {
+		return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
+	}
 
 	type lineResult struct {
 		lineNumber uint64
@@ -71,6 +46,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 	go func() {
 		receivedLineResults := map[uint64]lineResult{}
 		currentLineNumber := uint64(0)
+		foundResults := false
 
 		for lr := range resultsChan {
 			receivedLineResults[lr.lineNumber] = lr
@@ -80,15 +56,21 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 				if !ok {
 					break
 				}
-				if foundLineResult.err != nil {
-					if foundLineResult.err != ErrNoMatchingKeyValues {
-						fmt.Fprintf(out, "Error on line %d :%s : %s\n", foundLineResult.lineNumber, foundLineResult.original, foundLineResult.err)
+				err := foundLineResult.err
+				if err != nil {
+					if config.VerboseErrors || !isSoftError(err) {
+						fmt.Fprintf(out, "Error on line %d when looking for '%s': %s: %s\n", foundLineResult.lineNumber, config.LogFormatterType, err, foundLineResult.original)
 					}
 				} else {
 					fmt.Fprintln(out, foundLineResult.result)
+					foundResults = true
 				}
 				currentLineNumber++
 			}
+		}
+
+		if !foundResults {
+			fmt.Fprintf(out, "no results found for '%s' log format\n", config.LogFormatterType)
 		}
 
 		doneChan <- true
@@ -111,7 +93,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 		wg.Add(1)
 		go func(lineNumber uint64, line []byte) {
 			defer wg.Done()
-			result, err := searchLine(config, line)
+			result, err := searchLine(config, line, formatter)
 			resultsChan <- lineResult{
 				original:   string(line),
 				lineNumber: lineNumber,
@@ -130,21 +112,15 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 	return nil
 }
 
-func searchLine(config Config, line []byte) (string, error) {
+func searchLine(config Config, line []byte, formatter StructuredLogFormatter) (string, error) {
 	valuesToPrint := make([]KV, 0, len(config.PrintKeys))
-
-	// TODO(vishen): Change this to a register approach?
-	var formatter StructuredLogFormatter
-	switch config.LogType {
-	case StructuredLogTypeText:
-		formatter = textLogFormatter{}
-	default:
-		formatter = jsonLogFormatter{}
-	}
 
 	found := false
 	for _, v := range config.MatchOn {
-		foundValue := formatter.GetValueFromLine(config, line, v.Key)
+		foundValue, err := formatter.GetValueFromLine(config, line, v.Key)
+		if err != nil {
+			return "", err
+		}
 
 		matched := false
 		if v.Value != "" {
@@ -172,7 +148,10 @@ func searchLine(config Config, line []byte) (string, error) {
 	}
 
 	for _, pk := range config.PrintKeys {
-		pkv := formatter.GetValueFromLine(config, line, pk)
+		pkv, err := formatter.GetValueFromLine(config, line, pk)
+		if err != nil {
+			return "", err
+		}
 		if pkv == "" {
 			continue
 		}
@@ -187,7 +166,7 @@ func searchLine(config Config, line []byte) (string, error) {
 		if len(config.PrintKeys) == 0 {
 			return string(line), nil
 		}
-		return "", ErrNoMatchingKeyValues
+		return "", ErrNoMatchingPrintValues
 	} else {
 		return formatter.FormatFoundValues(config, valuesToPrint), nil
 	}

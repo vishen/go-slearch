@@ -5,9 +5,13 @@ import (
 	"fmt"
 )
 
+func init() {
+	Register("text", textLogFormatter{})
+}
+
 type textLogFormatter struct{}
 
-func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key string) string {
+func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key string) (string, error) {
 
 	// Loop through the characters in the `line` and find a matching `key`
 	// and it's value, take into account some values might be surronded
@@ -56,13 +60,13 @@ func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key strin
 		}
 
 		if startPos >= pos || pos > len(line) {
-			return ""
+			return "", nil
 		}
 
-		return string(line[startPos:pos])
+		return string(line[startPos:pos]), nil
 	}
 
-	return ""
+	return "", ErrInvalidFormatForLine
 }
 
 func (t textLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {
