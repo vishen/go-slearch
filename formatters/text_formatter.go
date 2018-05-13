@@ -1,17 +1,19 @@
-package structured_log_search
+package formatters
 
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/vishen/go-slearch/slearch"
 )
 
 func init() {
-	Register("text", textLogFormatter{})
+	slearch.Register("text", textLogFormatter{})
 }
 
 type textLogFormatter struct{}
 
-func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key string) (string, error) {
+func (t textLogFormatter) GetValueFromLine(config slearch.Config, line []byte, key string) (string, error) {
 
 	// Loop through the characters in the `line` and find a matching `key`
 	// and it's value, take into account some values might be surronded
@@ -66,10 +68,10 @@ func (t textLogFormatter) GetValueFromLine(config Config, line []byte, key strin
 		return string(line[startPos:pos]), nil
 	}
 
-	return "", ErrInvalidFormatForLine
+	return "", slearch.ErrInvalidFormatForLine
 }
 
-func (t textLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {
+func (t textLogFormatter) FormatFoundValues(config slearch.Config, valuesFound []slearch.KV) string {
 	var buffer bytes.Buffer
 	for _, v := range valuesFound {
 		buffer.WriteString(fmt.Sprintf("%s=\"%s\" ", v.Key, v.Value))

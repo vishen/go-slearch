@@ -1,4 +1,4 @@
-package structured_log_search
+package slearch
 
 import "sync"
 

@@ -1,4 +1,4 @@
-package structured_log_search
+package slearch
 
 import (
 	"bufio"
@@ -27,7 +27,6 @@ type StructuredLogFormatter interface {
 }
 
 func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
-
 	formatter, ok := getFormatter(config.LogFormatterType)
 	if !ok {
 		return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
@@ -58,7 +57,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 				}
 				err := foundLineResult.err
 				if err != nil {
-					if config.VerboseErrors || !isSoftError(err) {
+					if config.Verbose || !isSoftError(err) {
 						fmt.Fprintf(out, "Error on line %d when looking for '%s': %s: %s\n", foundLineResult.lineNumber, config.LogFormatterType, err, foundLineResult.original)
 					}
 				} else {

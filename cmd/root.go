@@ -22,10 +22,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	sls "github.com/vishen/go-slearch/structured_log_search"
+	// Load the structured log search formatters
+	_ "github.com/vishen/go-slearch/formatters"
+	"github.com/vishen/go-slearch/slearch"
 )
-
-var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -39,12 +39,13 @@ var rootCmd = &cobra.Command{
 		t, _ := cmd.Flags().GetString("type")
 		s, _ := cmd.Flags().GetString("search_type")
 		d, _ := cmd.Flags().GetString("key_delimiter")
+		v, _ := cmd.Flags().GetBool("verbose")
 
-		config := sls.Config{}
+		config := slearch.Config{}
 
-		makeKVSlice := func(values []string, regex bool) []sls.KV {
+		makeKVSlice := func(values []string, regex bool) []slearch.KV {
 			prevKey := ""
-			kvs := make([]sls.KV, 0, len(m))
+			kvs := make([]slearch.KV, 0, len(m))
 			for _, v := range values {
 				vSplit := strings.SplitN(v, "=", 2)
 
@@ -61,7 +62,7 @@ var rootCmd = &cobra.Command{
 				}
 				prevKey = key
 
-				kv := sls.KV{Key: key}
+				kv := slearch.KV{Key: key}
 				if regex {
 					kv.RegexString = value
 				} else {
@@ -79,6 +80,7 @@ var rootCmd = &cobra.Command{
 		config.MatchOn = append(config.MatchOn, makeKVSlice(r, true)...)
 		config.PrintKeys = k
 		config.KeySplitString = d
+		config.Verbose = v
 
 		if t == "" {
 			t = "json"
@@ -86,12 +88,12 @@ var rootCmd = &cobra.Command{
 		config.LogFormatterType = strings.ToLower(t)
 
 		if strings.ToLower(s) == "or" {
-			config.MatchType = sls.StructuredLogMatchTypeOr
+			config.MatchType = slearch.StructuredLogMatchTypeOr
 		} else {
-			config.MatchType = sls.StructuredLogMatchTypeAnd
+			config.MatchType = slearch.StructuredLogMatchTypeAnd
 		}
 
-		if err := sls.StructuredLoggingSearch(config, os.Stdin, os.Stdout); err != nil {
+		if err := slearch.StructuredLoggingSearch(config, os.Stdin, os.Stdout); err != nil {
 			log.Printf("error searching structured logs: %s\n", err)
 		}
 	},
@@ -113,4 +115,5 @@ func init() {
 	rootCmd.Flags().StringSliceP("match", "m", []string{}, "key and value to match on. eg: label1=value1")
 	rootCmd.Flags().StringSliceP("regexp", "r", []string{}, "key and value to regex match on. eg: label1=value*")
 	rootCmd.Flags().StringSliceP("print_keys", "p", []string{}, "keys to print if a match is found")
+	rootCmd.Flags().BoolP("verbose", "v", false, "verbose output")
 }

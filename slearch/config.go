@@ -1,4 +1,4 @@
-package structured_log_search
+package slearch
 
 type StructuredLogMatchType int
 
@@ -29,5 +29,6 @@ type Config struct {
 	// String to split the key on
 	KeySplitString string
 
-	VerboseErrors bool
+	// Will print all debug statements
+	Verbose bool
 }

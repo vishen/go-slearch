@@ -1,4 +1,4 @@
-package structured_log_search
+package formatters
 
 import (
 	"bytes"
@@ -6,25 +6,26 @@ import (
 	"strings"
 
 	"github.com/buger/jsonparser"
+	"github.com/vishen/go-slearch/slearch"
 )
 
 func init() {
-	Register("json", jsonLogFormatter{})
+	slearch.Register("json", jsonLogFormatter{})
 }
 
 type jsonLogFormatter struct{}
 
-func (j jsonLogFormatter) GetValueFromLine(config Config, line []byte, key string) (string, error) {
+func (j jsonLogFormatter) GetValueFromLine(config slearch.Config, line []byte, key string) (string, error) {
 	trimedLine := bytes.TrimSpace(line)
 	if trimedLine[0] != '{' && trimedLine[len(trimedLine)-1] != '}' {
-		return "", ErrInvalidFormatForLine
+		return "", slearch.ErrInvalidFormatForLine
 	}
 	keySplit := searchableKey(key, config.KeySplitString)
 	vs, _, _, _ := jsonparser.Get(trimedLine, keySplit...)
 	return fmt.Sprintf("%s", vs), nil
 }
 
-func (j jsonLogFormatter) FormatFoundValues(config Config, valuesFound []KV) string {
+func (j jsonLogFormatter) FormatFoundValues(config slearch.Config, valuesFound []slearch.KV) string {
 	var buffer bytes.Buffer
 	buffer.WriteString("{")
 	for i, v := range valuesFound {
