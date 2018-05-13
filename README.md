@@ -81,11 +81,14 @@ $ cat example.txt | go-slearch -m key1=value1,key3=value3 -s or -p severity,key1
 
 ## TODO
 ```
-- Tests and documentation
-- Better controlled concurrency
-- Sort based on keys
-- Regex match on case insensitive
 - Bold what was matched
+- Sort based on keys
+- Tests and documentation and examples
+    - Document regex case insensitive match ("(?i)" a the start of the regex)
+- Add new formatters:
+    - Add log formatter that splits stuff by delimeter, and you can the select which element(s) via $n
+    - Add googles glog format
+- Better controlled concurrency
 - Ignore parts of the line that don't match a specified format?
 - Add integration support (might not be worth it if we have to pull in the client libraries for these)?
     - kubernetes
