@@ -31,7 +31,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "go-slearch",
 	Short: "Search structured logs",
-	Long:  `Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON logs.`,
+	Long:  `Read stuctured logs from STDIN and filter out lines based on exact and regex matches. Currently only supports JSON and text logs.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		m, _ := cmd.Flags().GetStringSlice("match")
 		r, _ := cmd.Flags().GetStringSlice("regexp")
@@ -81,10 +81,6 @@ var rootCmd = &cobra.Command{
 		config.PrintKeys = k
 		config.KeySplitString = d
 		config.Verbose = v
-
-		if t == "" {
-			t = "json"
-		}
 		config.LogFormatterType = strings.ToLower(t)
 
 		if strings.ToLower(s) == "or" {
@@ -109,7 +105,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringP("type", "t", "json", "the log type to use: 'json' or 'text'")
+	rootCmd.Flags().StringP("type", "t", "", "the log type to use: 'json' or 'text'. If unspecified it will attempt to use all log types")
 	rootCmd.Flags().StringP("search_type", "s", "and", "the search type to use: 'and' or 'or'")
 	rootCmd.Flags().StringP("key_delimiter", "d", "", "the string to split the key on for complex key queries")
 	rootCmd.Flags().StringSliceP("match", "m", []string{}, "key and value to match on. eg: label1=value1")

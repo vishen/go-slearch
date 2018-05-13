@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/buger/jsonparser"
+	"github.com/pkg/errors"
 	"github.com/vishen/go-slearch/slearch"
 )
 
@@ -18,7 +19,7 @@ type jsonLogFormatter struct{}
 func (j jsonLogFormatter) GetValueFromLine(config slearch.Config, line []byte, key string) (string, error) {
 	trimedLine := bytes.TrimSpace(line)
 	if trimedLine[0] != '{' && trimedLine[len(trimedLine)-1] != '}' {
-		return "", slearch.ErrInvalidFormatForLine
+		return "", errors.Errorf("line is not in json format")
 	}
 	keySplit := searchableKey(key, config.KeySplitString)
 	vs, _, _, _ := jsonparser.Get(trimedLine, keySplit...)

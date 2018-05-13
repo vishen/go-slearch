@@ -68,7 +68,7 @@ func (t textLogFormatter) GetValueFromLine(config slearch.Config, line []byte, k
 		return string(line[startPos:pos]), nil
 	}
 
-	return "", slearch.ErrInvalidFormatForLine
+	return "", nil
 }
 
 func (t textLogFormatter) FormatFoundValues(config slearch.Config, valuesFound []slearch.KV) string {

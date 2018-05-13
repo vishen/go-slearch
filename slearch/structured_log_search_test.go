@@ -23,7 +23,6 @@ func Test_isSoftError(t *testing.T) {
 
 	assert.True(isSoftError(ErrNoMatchingKeyValues))
 	assert.True(isSoftError(ErrNoMatchingPrintValues))
-	assert.False(isSoftError(ErrInvalidFormatForLine))
 	assert.False(isSoftError(errors.New("some random error")))
 }
 

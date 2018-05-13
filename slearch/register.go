@@ -15,6 +15,16 @@ func Register(key string, structuredLogFormatter StructuredLogFormatter) {
 	formattersMu.Unlock()
 }
 
+func GetAllFormatters() []StructuredLogFormatter {
+	formattersList := make([]StructuredLogFormatter, len(formatters))
+	i := 0
+	for _, f := range formatters {
+		formattersList[i] = f
+		i++
+	}
+	return formattersList
+}
+
 func getFormatter(key string) (StructuredLogFormatter, bool) {
 	formattersMu.Lock()
 	defer formattersMu.Unlock()

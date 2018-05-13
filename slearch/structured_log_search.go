@@ -14,7 +14,6 @@ var (
 	// Common errors
 	ErrNoMatchingKeyValues   = errors.New("no matching key values found")
 	ErrNoMatchingPrintValues = errors.New("no matching print values found")
-	ErrInvalidFormatForLine  = errors.New("invalid line format")
 )
 
 func isSoftError(err error) bool {
@@ -27,9 +26,17 @@ type StructuredLogFormatter interface {
 }
 
 func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
-	formatter, ok := getFormatter(config.LogFormatterType)
-	if !ok {
-		return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
+
+	var formatters []StructuredLogFormatter
+
+	if config.LogFormatterType == "" {
+		formatters = GetAllFormatters()
+	} else {
+		formatter, ok := getFormatter(config.LogFormatterType)
+		if !ok {
+			return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
+		}
+		formatters = []StructuredLogFormatter{formatter}
 	}
 
 	type lineResult struct {
@@ -55,21 +62,23 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 				if !ok {
 					break
 				}
-				err := foundLineResult.err
-				if err != nil {
-					if config.Verbose || !isSoftError(err) {
-						fmt.Fprintf(out, "Error on line %d when looking for '%s': %s: %s\n", foundLineResult.lineNumber, config.LogFormatterType, err, foundLineResult.original)
-					}
-				} else {
+				if foundLineResult.result != "" {
 					fmt.Fprintln(out, foundLineResult.result)
 					foundResults = true
+				} else {
+					err := foundLineResult.err
+					if err != nil {
+						if config.Verbose || (!isSoftError(err) && config.LogFormatterType != "") {
+							fmt.Fprintf(out, "Error on line %d: %s: %s\n", foundLineResult.lineNumber, err, foundLineResult.original)
+						}
+					}
 				}
 				currentLineNumber++
 			}
 		}
 
 		if !foundResults {
-			fmt.Fprintf(out, "no results found for '%s' log format\n", config.LogFormatterType)
+			fmt.Fprintln(out, "no result found")
 		}
 
 		doneChan <- true
@@ -92,13 +101,19 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 		wg.Add(1)
 		go func(lineNumber uint64, line []byte) {
 			defer wg.Done()
-			result, err := searchLine(config, line, formatter)
-			resultsChan <- lineResult{
+			lr := lineResult{
 				original:   string(line),
 				lineNumber: lineNumber,
-				result:     result,
-				err:        err,
 			}
+			for _, formatter := range formatters {
+				result, err := SearchLine(config, line, formatter)
+				if err == nil {
+					lr.result = result
+					break
+				}
+				lr.err = err
+			}
+			resultsChan <- lr
 		}(i, text[:len(text)-1])
 
 	}
@@ -111,7 +126,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 	return nil
 }
 
-func searchLine(config Config, line []byte, formatter StructuredLogFormatter) (string, error) {
+func SearchLine(config Config, line []byte, formatter StructuredLogFormatter) (string, error) {
 	valuesToPrint := make([]KV, 0, len(config.PrintKeys))
 
 	found := false
@@ -134,10 +149,6 @@ func searchLine(config Config, line []byte, formatter StructuredLogFormatter) (s
 
 		if matched {
 			found = matched
-		}
-
-		if len(valuesToPrint) > 0 {
-			continue
 		}
 
 	}
