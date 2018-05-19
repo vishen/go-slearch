@@ -12,9 +12,10 @@ import (
 
 var (
 	// Common errors
-	ErrNoMatchingKeyValues   = errors.New("no matching key values found")
-	ErrNoMatchingPrintValues = errors.New("no matching print values found")
-	ErrInvalidFormat         = errors.New("invalid formatter format")
+	ErrNoMatchingKeyValues    = errors.New("no matching key values found")
+	ErrNoMatchingPrintValues  = errors.New("no matching print values found")
+	ErrInvalidFormat          = errors.New("invalid formatter format")
+	ErrNoFormattersRegistered = errors.New("no formatters registered")
 )
 
 func isSoftError(err error) bool {
@@ -40,6 +41,10 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 			return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
 		}
 		formatters = []RegisterFunc{formatter}
+	}
+
+	if len(formatters) == 0 {
+		return ErrNoFormattersRegistered
 	}
 
 	type lineResult struct {
@@ -81,7 +86,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 		}
 
 		if !foundResults {
-			fmt.Fprintln(out, "no result found")
+			fmt.Fprintln(out, "no results found")
 		}
 
 		doneChan <- true
