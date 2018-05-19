@@ -4,19 +4,21 @@ import "sync"
 
 var (
 
-	// Map of structured log formatter
-	formatters   = map[string]StructuredLogFormatter{}
+	// Map of structured log formatter funcs
+	formatters   = map[string]RegisterFunc{}
 	formattersMu = sync.Mutex{}
 )
 
-func Register(key string, structuredLogFormatter StructuredLogFormatter) {
+type RegisterFunc func(Config) StructuredLogFormatter
+
+func Register(key string, registerFunc RegisterFunc) {
 	formattersMu.Lock()
-	formatters[key] = structuredLogFormatter
+	formatters[key] = registerFunc
 	formattersMu.Unlock()
 }
 
-func GetAllFormatters() []StructuredLogFormatter {
-	formattersList := make([]StructuredLogFormatter, len(formatters))
+func GetAllFormatters() []RegisterFunc {
+	formattersList := make([]RegisterFunc, len(formatters))
 	i := 0
 	for _, f := range formatters {
 		formattersList[i] = f
@@ -25,7 +27,7 @@ func GetAllFormatters() []StructuredLogFormatter {
 	return formattersList
 }
 
-func getFormatter(key string) (StructuredLogFormatter, bool) {
+func getFormatter(key string) (RegisterFunc, bool) {
 	formattersMu.Lock()
 	defer formattersMu.Unlock()
 

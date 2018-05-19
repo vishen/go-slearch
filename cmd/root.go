@@ -84,9 +84,9 @@ var rootCmd = &cobra.Command{
 		config.LogFormatterType = strings.ToLower(t)
 
 		if strings.ToLower(s) == "or" {
-			config.MatchType = slearch.StructuredLogMatchTypeOr
+			config.MatchType = slearch.MatchTypeOr
 		} else {
-			config.MatchType = slearch.StructuredLogMatchTypeAnd
+			config.MatchType = slearch.MatchTypeAnd
 		}
 
 		if err := slearch.StructuredLoggingSearch(config, os.Stdin, os.Stdout); err != nil {

@@ -14,6 +14,7 @@ var (
 	// Common errors
 	ErrNoMatchingKeyValues   = errors.New("no matching key values found")
 	ErrNoMatchingPrintValues = errors.New("no matching print values found")
+	ErrInvalidFormat         = errors.New("invalid formatter format")
 )
 
 func isSoftError(err error) bool {
@@ -21,13 +22,15 @@ func isSoftError(err error) bool {
 }
 
 type StructuredLogFormatter interface {
-	GetValueFromLine(config Config, line []byte, key string) (string, error)
-	FormatFoundValues(config Config, valuesFound []KV) string
+	ValidateLine(line []byte) (bool, []byte)
+	GetValueFromLine(line []byte, key string) (string, error)
+	FormatFoundValues(valuesFound []KV) string
+	AppendValues(line []byte, values []KV) string
 }
 
 func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 
-	var formatters []StructuredLogFormatter
+	var formatters []RegisterFunc
 
 	if config.LogFormatterType == "" {
 		formatters = GetAllFormatters()
@@ -36,7 +39,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 		if !ok {
 			return errors.Errorf("no formatter for '%s' found", config.LogFormatterType)
 		}
-		formatters = []StructuredLogFormatter{formatter}
+		formatters = []RegisterFunc{formatter}
 	}
 
 	type lineResult struct {
@@ -92,7 +95,6 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 	wg := sync.WaitGroup{}
 
 	for i := uint64(0); ; i++ {
-		// TODO(vishen): This is super inefficient...
 		text, err := reader.ReadBytes('\n')
 		if err != nil {
 			break
@@ -105,6 +107,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 				original:   string(line),
 				lineNumber: lineNumber,
 			}
+			// TODO(vishen): When a formatter is first found, always try that one first
 			for _, formatter := range formatters {
 				result, err := SearchLine(config, line, formatter)
 				if err == nil {
@@ -126,24 +129,46 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 	return nil
 }
 
-func SearchLine(config Config, line []byte, formatter StructuredLogFormatter) (string, error) {
+func SearchLine(config Config, line []byte, formatterFunc RegisterFunc) (string, error) {
+
+	formatter := formatterFunc(config)
+
+	validLine, line := formatter.ValidateLine(line)
+	if !validLine {
+		return "", ErrInvalidFormat
+	}
+
 	valuesToPrint := make([]KV, 0, len(config.PrintKeys))
 
 	found := false
 	for _, v := range config.MatchOn {
-		foundValue, err := formatter.GetValueFromLine(config, line, v.Key)
+		foundValue, err := formatter.GetValueFromLine(line, v.Key)
 		if err != nil {
-			return "", err
+			// If not found in line, check to see if it is in extras
+			for _, e := range config.Extras {
+				if e.Key == v.Key {
+					foundValue = e.Value
+					break
+				}
+			}
+
+			if foundValue == "" {
+				continue
+			}
 		}
 
 		matched := false
-		if v.Value != "" {
-			matched = foundValue == v.Value
-		} else if v.RegexString != "" {
-			matched, _ = regexp.MatchString(v.RegexString, foundValue)
+		if v.KeyExists && foundValue != "" {
+			matched = true
+		} else {
+			if v.Value != "" {
+				matched = foundValue == v.Value
+			} else if v.RegexString != "" {
+				matched, _ = regexp.MatchString(v.RegexString, foundValue)
+			}
 		}
 
-		if !matched && config.MatchType == StructuredLogMatchTypeAnd {
+		if !matched && config.MatchType == MatchTypeAnd {
 			return "", ErrNoMatchingKeyValues
 		}
 
@@ -158,9 +183,18 @@ func SearchLine(config Config, line []byte, formatter StructuredLogFormatter) (s
 	}
 
 	for _, pk := range config.PrintKeys {
-		pkv, err := formatter.GetValueFromLine(config, line, pk)
+		pkv, err := formatter.GetValueFromLine(line, pk)
 		if err != nil {
-			return "", err
+			if pkv == "" {
+				return "", err
+			}
+		}
+		// If not found in line, check to see if it is in Extras
+		for _, e := range config.Extras {
+			if e.Key == pk {
+				pkv = e.Value
+				break
+			}
 		}
 		if pkv == "" {
 			continue
@@ -174,10 +208,19 @@ func SearchLine(config Config, line []byte, formatter StructuredLogFormatter) (s
 	// are found.
 	if len(valuesToPrint) == 0 {
 		if len(config.PrintKeys) == 0 {
+			// TODO(vishen): Do something better for when we have extra values to add
+			// to the line, but we don't know the format - maybe add a new formatter method
+			// that will parse the line and combine it with the extras if possible
+			if len(config.Extras) > 0 {
+				return formatter.AppendValues(line, config.Extras), nil
+			}
 			return string(line), nil
+
 		}
 		return "", ErrNoMatchingPrintValues
 	} else {
-		return formatter.FormatFoundValues(config, valuesToPrint), nil
+		// Add any extra values
+		valuesToPrint = append(valuesToPrint, config.Extras...)
+		return formatter.FormatFoundValues(valuesToPrint), nil
 	}
 }

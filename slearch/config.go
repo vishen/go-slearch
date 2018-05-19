@@ -1,16 +1,18 @@
 package slearch
 
-type StructuredLogMatchType int
+type MatchType int
 
 const (
-	StructuredLogMatchTypeAnd = StructuredLogMatchType(iota)
-	StructuredLogMatchTypeOr
+	MatchTypeAnd = MatchType(iota)
+	MatchTypeOr
 )
 
 type KV struct {
-	Key         string
-	Value       string
-	RegexString string
+	Key          string
+	Value        string
+	RegexString  string
+	KeyExists    bool
+	KeyNotExists bool
 }
 
 type Config struct {
@@ -18,7 +20,7 @@ type Config struct {
 	LogFormatterType string
 
 	// Whether this is an AND or OR matching
-	MatchType StructuredLogMatchType
+	MatchType MatchType
 
 	// Values to match on
 	MatchOn []KV
@@ -31,4 +33,7 @@ type Config struct {
 
 	// Will print all debug statements
 	Verbose bool
+
+	// Extra key values to print and search on
+	Extras []KV
 }

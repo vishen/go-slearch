@@ -3,17 +3,37 @@ package formatters
 import (
 	"bytes"
 	"fmt"
+	"unicode"
 
 	"github.com/vishen/go-slearch/slearch"
 )
 
 func init() {
-	slearch.Register("text", textLogFormatter{})
+	slearch.Register("text", NewTextFormatter)
 }
 
-type textLogFormatter struct{}
+type textLogFormatter struct {
+	config slearch.Config
+}
 
-func (t textLogFormatter) GetValueFromLine(config slearch.Config, line []byte, key string) (string, error) {
+func NewTextFormatter(config slearch.Config) slearch.StructuredLogFormatter {
+	return textLogFormatter{config}
+}
+
+func (t textLogFormatter) ValidateLine(line []byte) (bool, []byte) {
+	trimmedLine := bytes.TrimSpace(line)
+
+	valid := false
+
+	i := bytes.Index(trimmedLine, []byte{'='})
+	if i > 0 && i < len(line)-2 {
+		valid = !unicode.IsSpace(rune(line[i-1])) && !unicode.IsSpace(rune(line[i+1]))
+	}
+
+	return valid, trimmedLine
+}
+
+func (t textLogFormatter) GetValueFromLine(line []byte, key string) (string, error) {
 
 	// Loop through the characters in the `line` and find a matching `key`
 	// and it's value, take into account some values might be surronded
@@ -71,10 +91,14 @@ func (t textLogFormatter) GetValueFromLine(config slearch.Config, line []byte, k
 	return "", nil
 }
 
-func (t textLogFormatter) FormatFoundValues(config slearch.Config, valuesFound []slearch.KV) string {
+func (t textLogFormatter) FormatFoundValues(valuesFound []slearch.KV) string {
 	var buffer bytes.Buffer
 	for _, v := range valuesFound {
 		buffer.WriteString(fmt.Sprintf("%s=\"%s\" ", v.Key, v.Value))
 	}
 	return buffer.String()
+}
+
+func (t textLogFormatter) AppendValues(line []byte, values []slearch.KV) string {
+	return fmt.Sprintf("%s %s", line, t.FormatFoundValues(values))
 }
