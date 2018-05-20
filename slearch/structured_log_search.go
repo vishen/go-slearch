@@ -85,7 +85,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 			}
 		}
 
-		if !foundResults {
+		if !foundResults && !config.Silence {
 			fmt.Fprintln(out, "no results found")
 		}
 

@@ -34,6 +34,9 @@ type Config struct {
 	// Will print all debug statements
 	Verbose bool
 
+	// Silence will stop normal info statements
+	Silence bool
+
 	// Extra key values to print and search on
 	Extras []KV
 }
