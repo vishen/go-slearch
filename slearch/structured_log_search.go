@@ -149,6 +149,10 @@ func SearchLine(config Config, line []byte, formatterFunc RegisterFunc) (string,
 	for _, v := range config.MatchOn {
 		foundValue, err := formatter.GetValueFromLine(line, v.Key)
 		if err != nil {
+			return "", err
+		}
+
+		if foundValue == "" {
 			// If not found in line, check to see if it is in extras
 			for _, e := range config.Extras {
 				if e.Key == v.Key {
