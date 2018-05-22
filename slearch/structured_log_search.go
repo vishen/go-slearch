@@ -2,7 +2,6 @@ package slearch
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -111,6 +110,11 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 
 		// if text is empty just continue
 		if len(text) == 0 {
+			continue
+		}
+
+		if len(config.PrintKeys) == 0 && len(config.MatchOn) == 0 {
+			fmt.Fprintf(out, "%s%s\n", config.Prefix, text)
 			continue
 		}
 
@@ -226,18 +230,7 @@ func SearchLine(config Config, line []byte, formatterFunc RegisterFunc) (string,
 	// are found.
 	if len(valuesToPrint) == 0 {
 		if len(config.PrintKeys) == 0 {
-			// TODO(vishen): Do something better for when we have extra values to add
-			// to the line, but we don't know the format - maybe add a new formatter method
-			// that will parse the line and combine it with the extras if possible
-			if len(config.Extras) > 0 {
-
-				var buffer bytes.Buffer
-				for _, e := range config.Extras {
-					buffer.WriteString(fmt.Sprintf("%s=%s ", e.Key, e.Value))
-				}
-				return fmt.Sprintf("%s%s", buffer.String(), line), nil
-			}
-			return string(line), nil
+			return formatter.AppendValues(line, config.Extras), nil
 
 		}
 		return "", ErrNoMatchingPrintValues
