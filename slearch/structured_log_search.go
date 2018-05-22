@@ -2,6 +2,7 @@ package slearch
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -229,7 +230,12 @@ func SearchLine(config Config, line []byte, formatterFunc RegisterFunc) (string,
 			// to the line, but we don't know the format - maybe add a new formatter method
 			// that will parse the line and combine it with the extras if possible
 			if len(config.Extras) > 0 {
-				return formatter.AppendValues(line, config.Extras), nil
+
+				var buffer bytes.Buffer
+				for _, e := range config.Extras {
+					buffer.WriteString(fmt.Sprintf("%s=%s ", e.Key, e.Value))
+				}
+				return fmt.Sprintf("%s%s", buffer.String(), line), nil
 			}
 			return string(line), nil
 
