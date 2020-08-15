@@ -18,10 +18,6 @@ var (
 	ErrNoFormattersRegistered = errors.New("no formatters registered")
 )
 
-func isSoftError(err error) bool {
-	return err == ErrNoMatchingKeyValues || err == ErrNoMatchingPrintValues
-}
-
 type StructuredLogFormatter interface {
 	ValidateLine(line []byte) (bool, []byte)
 	GetValueFromLine(line []byte, key string) (string, error)
@@ -76,7 +72,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 				} else {
 					err := foundLineResult.err
 					if err != nil {
-						if config.Verbose || (!isSoftError(err) && config.LogFormatterType != "") {
+						if config.Verbose {
 							fmt.Fprintf(out, "Error on line %d: %s: %s\n", foundLineResult.lineNumber, err, foundLineResult.original)
 						}
 					}
@@ -85,7 +81,7 @@ func StructuredLoggingSearch(config Config, in io.Reader, out io.Writer) error {
 			}
 		}
 
-		if !foundResults && !config.Silence {
+		if !foundResults {
 			fmt.Fprintln(out, "no results found")
 		}
 

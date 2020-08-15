@@ -82,7 +82,6 @@ var rootCmd = &cobra.Command{
 		config.KeySplitString = d
 		config.Verbose = v
 		config.LogFormatterType = strings.ToLower(t)
-		config.Silence = true
 
 		if strings.ToLower(s) == "or" {
 			config.MatchType = slearch.MatchTypeOr
